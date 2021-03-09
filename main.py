@@ -16,7 +16,6 @@ import random
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 path_voc = "F:\Pytorch_Deep_RL\VOCtrainval_06-Nov-2007\VOCdevkit\VOC2007"
 
-# getting models
 print("load models")
 
 model_vgg = getVGG_16bn("../models")
@@ -24,11 +23,9 @@ model_vgg = model_vgg.cpu()
 model = get_q_network()
 model = model.cpu()
 
-# define optimizers for each model
 optimizer = optim.Adam(model.parameters(), lr=1e-6)
 criterion = nn.MSELoss().cpu()
 
-# getting image data
 path_voc = "F:\Pytorch_Deep_RL\VOCtrainval_06-Nov-2007\VOCdevkit\VOC2007"
 class_object = '1'
 image_names, images = load_image_data(path_voc, class_object)
@@ -40,7 +37,6 @@ LongTensor = torch.LongTensor
 ByteTensor = torch.ByteTensor
 Tensor = FloatTensor
 
-#super parameters
 epsilon = 1.0
 BATCH_SIZE = 200
 GAMMA = 0.90
@@ -106,13 +102,10 @@ for epoch in range(epochs):
         classes_gt_objects = get_ids_objects_from_annotation(annotation)
         gt_masks = generate_bounding_box_from_annotation(annotation, image.shape)
 
-        # iou
         original_shape = (image.shape[0], image.shape[1])
         region_mask = np.ones((image.shape[0], image.shape[1]))
-        # max bounding box
         iou = find_max_bounding_box(gt_masks, region_mask, classes_gt_objects, CLASS_OBJECT)
 
-        # initial
         region_image = image
         size_mask = original_shape
         offset = (0, 0)
@@ -125,30 +118,26 @@ for epoch in range(epochs):
             else:
                 action = select_action(state)
 
-            # Take action and observe new state
             if action == 6:
                 next_state = None
                 reward = get_reward_trigger(iou)
                 done = True
             else:
-                offset, region_image, size_mask, region_mask = get_crop_image_and_mask(original_shape, offset,
-                                                                                       region_image, size_mask, action)
-                # update history vector and get next state
+                offset, region_image, size_mask, region_mask = get_crop_image_and_mask(original_shape, offset,region_image, size_mask, action)
+                
                 history_vector = update_history_vector(history_vector, action)
                 next_state = get_state(region_image, history_vector, model_vgg)
 
-                # find the max bounding box in the region image
                 new_iou = find_max_bounding_box(gt_masks, region_mask, classes_gt_objects, CLASS_OBJECT)
                 reward = get_reward_movement(iou, new_iou)
                 iou = new_iou
             print('epoch: %d, image: %d, step: %d, reward: %d' % (epoch, i, step, reward))
-            # Store the transition in memory
+           
             memory.push(state, action - 1, next_state, reward)
 
-            # Move to the next state
+           
             state = next_state
 
-            # Perform one step of the optimization on the target network
             optimizer_model()
             if done:
                 break
@@ -157,7 +146,6 @@ for epoch in range(epochs):
     time_cost = time.time() - now
     print('epoch = %d, time_cost = %.4f' % (epoch, time_cost))
 
-# save whole model
 Q_NETWORK_PATH = '../models/' + 'voc2012_2007_model'
 torch.save(model, Q_NETWORK_PATH)
 print('Complete')
