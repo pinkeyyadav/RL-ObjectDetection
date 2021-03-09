@@ -4,14 +4,14 @@ import torch.nn.init as init
 from torch import random
 from features import *
 
-# Different actions that the agent can do
+# Actions an agent can perform
 number_of_actions = 6
 
 # Actions captures in the history vector
-actions_of_history = 4
+actions_history = 4
 
 # Visual descriptor size
-visual_descriptor_size = 25088
+size_of_visual_descriptor = 25088
 
 # Reward movement action
 reward_movement_action = 1
@@ -79,7 +79,6 @@ def get_q_network(weights_path="0"):
     if weights_path != "0":
         model.load_state_dict(torch.load(weights_path))
 
-    # init weights by xavier_normal, it may be different with the author's implements
     def weights_init(m):
         if isinstance(m, nn.Linear):
             init.xavier_normal(m.weight.data)
