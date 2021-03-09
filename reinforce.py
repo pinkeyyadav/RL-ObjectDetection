@@ -4,22 +4,16 @@ import torch.nn.init as init
 from torch import random
 from features import *
 
-# Actions an agent can perform
 number_of_actions = 6
 
-# Actions captures in the history vector
 actions_history = 4
 
-# Visual descriptor size
 size_of_visual_descriptor = 25088
 
-# Reward movement action
 reward_movement_action = 1
 
-# Reward terminal action
 reward_terminal_action = 3
 
-# IoU required to consider a positive detection
 iou_threshold = 0.5
 
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
