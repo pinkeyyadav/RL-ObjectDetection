@@ -5,11 +5,8 @@ import torchvision
 import torch.optim as optim
 from torch.autograd import Variable
 from __init__ import *
-from image_helper import *
-from parse_xml_annotations import *
 from features import *
 from reinforcement import *
-from metrics import *
 from collections import namedtuple
 import time
 import os
@@ -19,7 +16,7 @@ import random
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 path_voc = "F:\Pytorch_Deep_RL\VOCtrainval_06-Nov-2007\VOCdevkit\VOC2007"
 
-# get models
+# getting models
 print("load models")
 
 model_vgg = getVGG_16bn("../models")
@@ -31,20 +28,19 @@ model = model.cpu()
 optimizer = optim.Adam(model.parameters(), lr=1e-6)
 criterion = nn.MSELoss().cpu()
 
-# get image data
+# getting image data
 path_voc = "F:\Pytorch_Deep_RL\VOCtrainval_06-Nov-2007\VOCdevkit\VOC2007"
 class_object = '1'
 image_names, images = load_image_data(path_voc, class_object)
 
 print("car_trainval image:%d" % len(image_names))
 
-# define the Pytorch Tensor
 FloatTensor = torch.FloatTensor
 LongTensor = torch.LongTensor
 ByteTensor = torch.ByteTensor
 Tensor = FloatTensor
 
-# define the super parameter
+#super parameters
 epsilon = 1.0
 BATCH_SIZE = 200
 GAMMA = 0.90
@@ -81,38 +77,26 @@ def optimizer_model():
     action_batch = Variable(torch.LongTensor(batch.action).view(-1, 1)).type(LongTensor)
     reward_batch = Variable(torch.FloatTensor(batch.reward).view(-1, 1)).type(Tensor)
 
-    # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
-    # columns of actions taken
     state_action_values = model(state_batch).gather(1, action_batch)
 
-    # Compute V(s_{t+1}) for all next states.
     next_state_values = Variable(torch.zeros(BATCH_SIZE, 1).type(Tensor))
     next_state_values[non_final_mask] = model(non_final_next_states).max(1)[0]
 
-    # Now, we don't want to mess up the loss with a volatile flag, so let's
-    # clear it. After this, we'll just end up with a Variable that has
-    # requires_grad=False
     next_state_values.volatile = False
 
-    # Compute the expected Q values
     expected_state_action_values = (next_state_values * GAMMA) + reward_batch
 
-    # Compute  loss
     loss = criterion(state_action_values, expected_state_action_values)
 
-    # Optimize the model
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
-
-# train procedure
 print('train the Q-network')
 for epoch in range(epochs):
     print('epoch: %d' % epoch)
     now = time.time()
     for i in range(len(image_names)):
-        # the image part
         image_name = image_names[i]
         image = images[i]
         if i < len(image_names):
@@ -122,13 +106,13 @@ for epoch in range(epochs):
         classes_gt_objects = get_ids_objects_from_annotation(annotation)
         gt_masks = generate_bounding_box_from_annotation(annotation, image.shape)
 
-        # the iou part
+        # iou
         original_shape = (image.shape[0], image.shape[1])
         region_mask = np.ones((image.shape[0], image.shape[1]))
-        # choose the max bouding box
+        # max bounding box
         iou = find_max_bounding_box(gt_masks, region_mask, classes_gt_objects, CLASS_OBJECT)
 
-        # the initial part
+        # initial
         region_image = image
         size_mask = original_shape
         offset = (0, 0)
@@ -136,13 +120,12 @@ for epoch in range(epochs):
         state = get_state(region_image, history_vector, model_vgg)
         done = False
         for step in range(steps):
-            # Select action, the author force terminal action if case actual IoU is higher than 0.5
             if iou > 0.5:
                 action = 6
             else:
                 action = select_action(state)
 
-            # Perform the action and observe new state
+            # Take action and observe new state
             if action == 6:
                 next_state = None
                 reward = get_reward_trigger(iou)
@@ -165,7 +148,7 @@ for epoch in range(epochs):
             # Move to the next state
             state = next_state
 
-            # Perform one step of the optimization (on the target network)
+            # Perform one step of the optimization on the target network
             optimizer_model()
             if done:
                 break
@@ -174,7 +157,7 @@ for epoch in range(epochs):
     time_cost = time.time() - now
     print('epoch = %d, time_cost = %.4f' % (epoch, time_cost))
 
-# save the whole model
+# save whole model
 Q_NETWORK_PATH = '../models/' + 'voc2012_2007_model'
 torch.save(model, Q_NETWORK_PATH)
 print('Complete')
